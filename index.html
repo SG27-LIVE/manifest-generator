@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manifest Generator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    input[type="text"],
+    textarea,
+    select,
+    input[type="date"],
+    input[type="submit"],
+    button {
+      margin-bottom: 10px;
+      width: 100%;
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    input[type="submit"],
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    input[type="submit"]:hover,
+    button:hover {
+      opacity: 0.8;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 20px;
+    }
+
+    caption {
+      text-align: left;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    th,
+    td {
+      border: 1px solid #000;
+      padding: 6px;
+      font-size: 14px;
+    }
+
+    th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+
+    td[style*="background-color: yellow;"] {
+      background-color: yellow;
+    }
+  </style>
+</head>
+<body>
+  <form id="manifestForm">
+    <label for="productName">Product Name:</label>
+    <select id="productName" name="productName">
+      <option value="Bluedart">Bluedart</option>
+      <option value="Ekart KRT">Ekart KRT</option>
+      <option value="EKART SRT">EKART SRT</option>
+      <option value="Delhivery">Delhivery</option>
+      <option value="ECom">ECom</option>
+      <option value="Smartr">Smartr</option>
+      <option value="Xpressbees">Xpressbees</option>
+      <option value="India Post">India Post</option>
+      <option value="DTDC">DTDC</option>
+      <option value="Shadowfax">Shadowfax</option>
+      <option value="Other">Other</option>
+    </select><br><br>
+
+    <label for="awbNumber">AWB Numbers (Separate by line break):</label><br>
+    <textarea id="awbNumber" name="awbNumber" rows="5" cols="30"></textarea><br><br>
+
+    <label for="manifestDate">Manifest Date:</label>
+    <input type="date" id="manifestDate" name="manifestDate"><br><br>
+
+    <!-- Added input fields for Date of Pick Up and Number of Shipment -->
+    <label for="dateOfPickUp">Date of Pick Up:</label>
+    <input type="date" id="dateOfPickUp" name="dateOfPickUp"><br><br>
+
+    <label for="numberOfShipment">Number of Shipment:</label>
+    <input type="text" id="numberOfShipment" name="numberOfShipment" placeholder="Enter number of shipment"><br><br>
+
+    <button type="submit">Generate Manifest</button>
+    <button id="downloadExcel">Download as Excel</button>
+  </form>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.4/xlsx.full.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const manifestForm = document.getElementById('manifestForm');
+      const awbNumberField = document.getElementById('awbNumber');
+      const manifestDateField = document.getElementById('manifestDate');
+      const productNameField = document.getElementById('productName');
+      const dateOfPickUpField = document.getElementById('dateOfPickUp');
+      const numberOfShipmentField = document.getElementById('numberOfShipment');
+
+      const updateDate = () => {
+        const now = new Date();
+        const formattedDate = now.toISOString().split('T')[0];
+        const currentTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        manifestDateField.value = formattedDate;
+        return currentTime;
+      };
+
+      const getCurrentTime = () => {
+        const now = new Date();
+        return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      };
+
+      updateDate(); // Set initial date
+
+      const generateManifest = () => {
+        const selectedProduct = productNameField.value;
+        const awbNumbers = awbNumberField.value.split('\n').map(num => num.trim());
+        const manifestDate = manifestDateField.value;
+        const currentTime = getCurrentTime();
+
+        // Get manually entered values
+        const dateOfPickUp = dateOfPickUpField.value;
+        const numberOfShipment = numberOfShipmentField.value;
+
+        // Find duplicates
+        const duplicateAWBs = awbNumbers.filter((item, index, array) => array.indexOf(item) !== index);
+
+        let manifestDetails = `
+          <table border="1">
+            <caption><strong style="text-transform: uppercase; font-size: 18px;">Manifest - ${selectedProduct} (${manifestDate} ${currentTime})</strong></caption>
+            <thead>
+              <tr>
+                <th>No.</th>
+                <th>AWB Number</th>
+                <th>No.</th>
+                <th>AWB Number</th>
+                <th>No.</th>
+                <th>AWB Number</th>
+                <th>No.</th>
+                <th>AWB Number</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        // Generate rows with 4 entries (No. and AWB Number) per row
+        for (let i = 0; i < awbNumbers.length; i += 4) {
+          manifestDetails += '<tr>';
+          for (let j = 0; j < 4; j++) {
+            if (awbNumbers[i + j]) {  // Check if there's an AWB Number
+              let awbNumber = awbNumbers[i + j];
+              // Highlight duplicate AWB numbers
+              const highlight = duplicateAWBs.includes(awbNumber) ? 'background-color: yellow;' : '';
+              manifestDetails += `<td style="${highlight}">${i + j + 1}</td><td style="${highlight}">${awbNumber}</td>`;
+            } else {
+              manifestDetails += `<td></td><td></td>`;  // Fill the remaining empty cells
+            }
+          }
+          manifestDetails += '</tr>';
+        }
+
+        manifestDetails += `</tbody></table>`;
+
+        // Add courier details with manually entered values
+        manifestDetails += `
+          <p><strong>Courier Person Name:</strong> ______________________</p>
+          <p><strong>Courier Person Contact Details:</strong> ______________________</p>
+          <p><strong>Courier Person Signature:</strong> ______________________</p>
+          <p><strong>Number of Shipment:</strong> ${numberOfShipment}</p>
+          <p><strong>Date of Pick Up:</strong> ${dateOfPickUp}</p>
+        `;
+
+        const printWindow = window.open('', '_blank');
+        printWindow.document.open();
+        printWindow.document.write(`
+          <html>
+          <head>
+            <title>Manifest</title>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                padding: 0;
+                margin: 0;
+                line-height: 1.4;
+              }
+              table {
+                border-collapse: collapse;
+                width: 100%;
+              }
+              caption {
+                text-align: left;
+                font-weight: bold;
+                margin-bottom: 10px;
+              }
+              th, td {
+                border: 1px solid #000;
+                padding: 6px;
+                font-size: 14px;
+              }
+            </style>
+          </head>
+          <body>
+            ${manifestDetails}
+          </body>
+          </html>
+        `);
+        printWindow.document.close();
+      };
+
+      // Event listener for form submission
+      manifestForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        generateManifest();
+      });
+
+      document.getElementById('downloadExcel').addEventListener('click', (event) => {
+        event.preventDefault();
+
+        const awbNumbers = awbNumberField.value.split('\n').map(num => num.trim());
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.aoa_to_sheet([['No.', 'AWB Number']]);
+
+        awbNumbers.forEach((awb, index) => {
+          XLSX.utils.sheet_add_aoa(worksheet, [[index + 1, awb]], { origin: -1 });
+        });
+
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Manifest');
+
+        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const fileName = `Manifest_${productNameField.value}_${manifestDateField.value}.xlsx`;
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName;
+        link.click();
+      });
+    });
+  </script>
+</body>
+</html>
